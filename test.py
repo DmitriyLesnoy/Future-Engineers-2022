@@ -4,6 +4,7 @@ import numpy as np
 import serial
 import time
 
+
 from GPIORobot import GPIORobotApi
 
 robot=GPIORobotApi()
