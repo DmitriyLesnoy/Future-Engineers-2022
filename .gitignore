@@ -1,0 +1,10 @@
+/.idea
+/autostart.py
+/demon_bootloader.py
+/demon_starter.py
+/help.py
+/HSV_color.py
+/InetConnection.py
+/libturbojpeg.dll
+/uart.py
+/__pycache__
