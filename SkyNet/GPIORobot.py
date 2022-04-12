@@ -6,11 +6,16 @@ import RobotAPI as rapi
 
 GPIO_PWM_SERVO = 13
 GPIO_PWM_MOTOR = 12
-GPIO_BUZZER=19
-GPIO_button=6
+GPIO_BUZZER=26
+GPIO_button=19
 
 GPIO_PIN_CW = 6
 GPIO_PIN_CCW = 5
+
+GPIO_RED=16
+GPIO_BLUE=20
+GPIO_GREEN=21
+
 
 WORK_TIME = 10
 DUTY_CYCLE = 50
@@ -114,15 +119,19 @@ class Buzz:
     def start(self):
         pi.set_mode(self.pin,pigpio.OUTPUT)
 
-    def write(self,duration=0.15,tone=2000):
-        pi.set_PWM_dutycycle(self.pin,tone)
-        time.sleep(duration)
+    def write(self,tone=120):
+        pi.set_PWM_dutycycle(self.pin, tone)
+        # pi.write(self.pin,1)
+        time.sleep(0.2)
+        pi.set_PWM_dutycycle(self.pin, 0)
+
 
 class Button:
     def __init__(self,GPIO_butn):
         self.pin_bt=GPIO_butn
 
     def start(self):
+        # pi.setwarnings(False)
         pi.set_mode(self.pin_bt,pigpio.INPUT)
         pi.set_pull_up_down(self.pin_bt,pigpio.PUD_UP)
 
@@ -141,10 +150,10 @@ class Light:
         pi.set_mode(self._g, pigpio.OUTPUT)
         pi.set_mode(self._b, pigpio.OUTPUT)
 
-    def write(self,rgb):
-        pi.set_PWM_dutycycle(self._r, rgb[0])
-        pi.set_PWM_dutycycle(self._g, rgb[1])
-        pi.set_PWM_dutycycle(self._b, rgb[2])
+    def write(self,red,green,blue):
+        pi.set_PWM_dutycycle(self._r, red)
+        pi.set_PWM_dutycycle(self._g, green)
+        pi.set_PWM_dutycycle(self._b, blue)
 
 
 class GPIORobotApi(rapi.RobotAPI):
@@ -163,6 +172,8 @@ class GPIORobotApi(rapi.RobotAPI):
         self._button = Button(GPIO_button)
         self._button.start()
 
+        self._light = Light(GPIO_RED,GPIO_GREEN,GPIO_BLUE)
+        self._light.start()
 
     def move(self, force: int, clockwise = True):
         self._motor.write(force, clockwise)
@@ -170,11 +181,14 @@ class GPIORobotApi(rapi.RobotAPI):
     def serv(self, angle: int):
         self._servo.write(angle)
 
-    def tone(self,duration: int,tone: int):
-        self._buzz.write(duration,tone)
+    def tone(self,tone: int):
+        self._buzz.write(tone)
 
     def button(self):
         return self._button.work()
+
+    def light(self, red, green, blue):
+        self._light.write(red,green,blue)
 
 
 if __name__ == "__main__":

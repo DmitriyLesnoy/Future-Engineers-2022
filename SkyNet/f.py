@@ -1,8 +1,10 @@
-from re import L, T
 import cv2
 import RobotAPI as rapi
 import numpy as np
 import serial
+import pigpio as pi
+import time
+
 import time
 
 
@@ -21,74 +23,13 @@ fps_time = 0
 
 HSV_black=[[0,62,0],[180,213,50]]
 
-def black_line_left(hsv):
-
-    x1,y1=0,200
-    x2,y2=20,480
-
-    global xb1, yb1, xb2, yb2, lowb, upb, sr, max1
-
-
-    datb1 = frame[y1:y2,x1:x2]
-    cv2.rectangle(frame, (x1, y1),(x2, y2), (255, 255, 255), 2)
-
-    dat1 = cv2.GaussianBlur(datb1, (5, 5), cv2.BORDER_DEFAULT)
-    hsv1 = cv2.cvtColor(dat1, cv2.COLOR_BGR2HSV)
-    maskd1 = cv2.inRange(hsv1,np.array(hsv[0]), np.array(hsv[1]))
-
-    gray1 = cv2.cvtColor(maskd1, cv2.COLOR_GRAY2BGR)
-    # frame[y1:y2,x1:x2] = gray1
-
-    imd1, contours, hod1 = cv2.findContours(maskd1, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-    max_y_right = 0
-
-    for contor in contours:
-        x, y, w, h = cv2.boundingRect(contor)
-        a1 = cv2.contourArea(contor)
-        if a1 > 100:
-            if max_y_right < y + h:
-                max_y_right = y + h
-
-            cv2.putText(frame, "" + str(max_y_right), (x1,y1-20), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1,
-                    (0, 255, 0), 2)
-    return (y+y+h)/2
-
-
-def black_line_right(hsv):
-
-    x1,y1=640-20,200
-    x2,y2=640,480
-
-    global xb1, yb1, xb2, yb2, lowb, upb, sr, max1
-
-
-    datb1 = frame[y1:y2,x1:x2]
-    cv2.rectangle(frame, (x1, y1),(x2, y2), (255, 255, 255), 2)
-
-    dat1 = cv2.GaussianBlur(datb1, (5, 5), cv2.BORDER_DEFAULT)
-    hsv1 = cv2.cvtColor(dat1, cv2.COLOR_BGR2HSV)
-    maskd1 = cv2.inRange(hsv1,np.array(hsv[0]), np.array(hsv[1]))
-
-    gray1 = cv2.cvtColor(maskd1, cv2.COLOR_GRAY2BGR)
-    # frame[y1:y2,x1:x2] = gray1
-
-    imd1, contours, hod1 = cv2.findContours(maskd1, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-    max_y_right = 0
-
-    for contor in contours:
-        x, y, w, h = cv2.boundingRect(contor)
-        a1 = cv2.contourArea(contor)
-        if a1 > 100:
-            if max_y_right < y + h:
-                max_y_right = y + h
-            
-            cv2.drawContours(frame, contor, -1, (0, 0, 255), 2)
-            cv2.putText(frame, "" + str(max_y_right), (x1-20,y1-20), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1,
-                    (0, 255, 0), 2)
-    return (y+y+h)/2
-
 nup=0
 mv=0
+
+PIN=26
+pi.set_mode(PIN, pigpio.OUTPUT)
+
+
 while 1:
 
     frame = robot.get_frame(wait_new_frame=1)
@@ -103,41 +44,16 @@ while 1:
     # if k!=-1:   
     #   print(k)
 
-    # if k==49:
-    #     nup=25
-    #     print(nup)
-    # if k==51:
-    #     nup=-25
-    #     print(nup)
-    # if k==50:
-    #     nup=0
-    #     print(nup)
-    # if k==52:
-    #     robot.move(100, True)
-    #     time.sleep(0.15)
-    #     # robot.move(0, True)
-    # if k==53:
-    #     robot.move(100, False)
-    #     time.sleep(0.15)
-    #     # robot.move(0, False)
-    # else:
-    #     robot.move(0, True)
-
-    # if nup>=25:
-    #     nup=25
-    # if nup<=-25:
-    #     nup=-25
-    # robot.serv(angle=nup)
-
-    l=black_line_left(HSV_black)
-    r=black_line_right(HSV_black)
-
-    # robot.move(200,True)
-    # time.sleep(1)
-    # print(1)
-    # robot.move(0, True)
-    # time.sleep(1)
-    # print(0)
+    if k==49:
+        # pi.set_PWM_frequency(PIN, 2700)
+ 
+        pi.set_PWM_dutycycle(PIN, 128)
+        
+        time.sleep(0.2)
+        
+        pi.set_PWM_dutycycle(PIN, 0)
+        
+        pi.stop()
 
     robot.text_to_frame(frame, 'fps = ' + str(fps), 500, 20)
     robot.set_frame(frame, 40)
