@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import re
 import cv2
-from cv2 import FILE_STORAGE_FORMAT_JSON
-from cv2 import FILE_STORAGE_WRITE_BASE64
 import RobotAPI as rapi
 import numpy as np
 import serial
@@ -191,7 +187,7 @@ def find_wall(hsv):
 
                 area_wall = area
 
-            if area_wall>470:
+            if area_wall>350:
                 flag_wall=True
 
             if flag_wall:
