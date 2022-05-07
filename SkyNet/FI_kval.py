@@ -30,7 +30,7 @@ HSV_blue=[[100,70,0],[170,255,255]]
 9
 # ?????????????????????????????????????????????
 
-global_speed=34
+global_speed=32
 
 
 states=['start','main','manual','HSV','finish']
@@ -151,7 +151,7 @@ def telemetry():
     robot.text_to_frame(frame, 'serv = ' + str(p), 10, 60,(0,255,0))
     robot.text_to_frame(frame, 'fps = ' + str(fps), 510, 20)
     robot.text_to_frame(frame, 'key = ' + str(k), 510, 40,(122,122,255))
-    robot.text_to_frame(frame, "Time: " + str(secundomer), 290, 20,(0,0,0)) 
+    robot.text_to_frame(frame, "Time: " + str(int(secundomer)), 290, 20,(0,0,0)) 
     if direction!=None:
         if dir==1:
             robot.text_to_frame(frame, 'Lines(+) = ' + str(count_lines), 10, 80,(0,0,0))
@@ -200,7 +200,7 @@ while 1:
 
     if state=='start':
         if robot.button()==0 or k==50:
-            robot.move(0)
+            robot.move(5)
             robot.serv(0)
             state='main'
         else:
@@ -208,9 +208,9 @@ while 1:
     
     if state=='main':
 
-        # if timer_sec==None:
-        #     timer_sec=time.time()
-        # secundomer=time.time()-timer_sec
+        if timer_sec==None:
+            timer_sec=time.time()
+        secundomer=time.time()-timer_sec
 
         if k==187:
             global_speed+=1
@@ -287,7 +287,7 @@ while 1:
         robot.move(global_speed)   
 
     if state=='finish':
-        pass
+        robot.move(5,False)
 
 
     if state=='manual':
@@ -316,7 +316,14 @@ while 1:
 
         if robot.button()==0:
             robot.tone(120)
-
+        if k==56:
+            robot.light(255,0,0)
+        if k==57:
+            robot.light(0,255,0)
+        if k==48:
+            robot.light(0,0,255)
+        if k==55:
+            robot.light(255,255,255)  
     telemetry()
 
     robot.set_frame(frame, 40)

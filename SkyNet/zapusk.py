@@ -151,7 +151,7 @@ def telemetry():
     robot.text_to_frame(frame, 'serv = ' + str(p), 10, 60,(0,255,0))
     robot.text_to_frame(frame, 'fps = ' + str(fps), 510, 20)
     robot.text_to_frame(frame, 'key = ' + str(k), 510, 40,(122,122,255))
-    robot.text_to_frame(frame, "Time: " + str(secundomer), 290, 20,(0,0,0)) 
+    robot.text_to_frame(frame, "Time: " + str(int(secundomer)), 290, 20,(0,0,0)) 
     if direction!=None:
         if dir==1:
             robot.text_to_frame(frame, 'Lines(+) = ' + str(count_lines), 10, 80,(0,0,0))
@@ -200,7 +200,7 @@ while 1:
 
     if state=='start':
         if robot.button()==0 or k==50:
-            robot.move(0)
+            robot.move(5)
             robot.serv(0)
             state='main'
         else:
@@ -208,9 +208,9 @@ while 1:
     
     if state=='main':
 
-        # if timer_sec==None:
-        #     timer_sec=time.time()
-        # secundomer=time.time()-timer_sec
+        if timer_sec==None:
+            timer_sec=time.time()
+        secundomer=time.time()-timer_sec
 
         if k==187:
             global_speed+=1
@@ -240,7 +240,7 @@ while 1:
                 flag_line=True
                 timer_line=time.time()
 
-            if time.time()>=timer_line+0.5 and flag_line:
+            if time.time()>=timer_line+0.7 and flag_line:
                 flag_line=False
                 count_lines+=1
 
@@ -269,9 +269,9 @@ while 1:
         delta_reg_old = delta_reg
 
         if max_r==0:
-            p=16
+            p=18
         if max_l==0:
-            p=-16
+            p=-18
 
         if p>=25:
             p=25
@@ -287,7 +287,7 @@ while 1:
         robot.move(global_speed)   
 
     if state=='finish':
-        pass
+        robot.move(5,False)
 
 
     if state=='manual':

@@ -12,9 +12,9 @@ GPIO_button=19
 GPIO_PIN_CW = 6
 GPIO_PIN_CCW = 5
 
-GPIO_RED=16
-GPIO_BLUE=20
-GPIO_GREEN=21
+GPIO_RED=27
+GPIO_BLUE=17
+GPIO_GREEN=22
 
 
 WORK_TIME = 10
@@ -146,14 +146,15 @@ class Light:
         pass
 
     def start(self):
+
         pi.set_mode(self._r, pigpio.OUTPUT)
         pi.set_mode(self._g, pigpio.OUTPUT)
         pi.set_mode(self._b, pigpio.OUTPUT)
 
     def write(self,red,green,blue):
-        pi.set_PWM_dutycycle(self._r, red)
-        pi.set_PWM_dutycycle(self._g, green)
-        pi.set_PWM_dutycycle(self._b, blue)
+        pi.set_PWM_dutycycle(self._r, 255-red)
+        pi.set_PWM_dutycycle(self._g, 255-green)
+        pi.set_PWM_dutycycle(self._b, 255-blue)
 
 
 class GPIORobotApi(rapi.RobotAPI):
@@ -179,7 +180,7 @@ class GPIORobotApi(rapi.RobotAPI):
         self._motor.write(force, clockwise)
 
     def serv(self, angle: int):
-        self._servo.write(angle)
+        self._servo.write(angle+8)
 
     def tone(self,tone: int):
         self._buzz.write(tone)

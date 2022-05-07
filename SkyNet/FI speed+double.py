@@ -1,3 +1,4 @@
+import re
 import cv2
 from cv2 import FILE_STORAGE_FORMAT_JSON
 from cv2 import FILE_STORAGE_WRITE_BASE64
@@ -36,7 +37,7 @@ HSV_green=[[70,77,73],[90,255,189]]
 # ?????????????????????????????????????????????
 
 global_speed=33
-
+speed=global_speed
 
 states=['start','main','manual','HSV','finish']
 
@@ -160,7 +161,7 @@ def find_start_line(hsv):
     return False
 
 def find_wall(hsv):
-    x1, y1 = 320-7, 230
+    x1, y1 = 320-7, 200
     x2, y2 = 320+7, 330
 
     datb1 = frame[y1:y2,x1:x2]
@@ -183,7 +184,7 @@ def find_wall(hsv):
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
         area = cv2.contourArea(contour)
-        if area > 200:
+        if area > 100:
             if area>max:
                 max=area
 
@@ -198,7 +199,7 @@ def find_wall(hsv):
     return flag_wall
 
 def find_box(hsv,color):
-    x1, y1 = 0, 235
+    x1, y1 = 0, 240
     x2, y2 = 640, 400
 
     datb1 = frame[y1:y2,x1:x2]
@@ -249,10 +250,16 @@ def find_box(hsv,color):
 
 
 
-
 def telemetry():
     robot.text_to_frame(frame, 'state = ' + str(state), 10, 20,(255,122,122))
-    robot.text_to_frame(frame, 'speed = ' + str(global_speed), 10, 40,(0,0,255))
+
+    s=(255,255,255)
+    if speed>global_speed:
+        s=(0,255,0)
+    if speed<global_speed:
+        s=(0,0,255)
+    robot.text_to_frame(frame, 'speed = ' + str(speed), 10, 40,s)
+
     robot.text_to_frame(frame, 'serv = ' + str(int(p)), 10, 60,(255,255,0))
     robot.text_to_frame(frame, 'fps = ' + str(fps), 505, 20)
     robot.text_to_frame(frame, 'key = ' + str(k), 505, 40,(122,122,255))
@@ -384,24 +391,26 @@ while 1:
         x_red,y_red,area_red=find_box(HSV_red,'red')
 
         delta_banka=0
-        k=4
-        r=1.2
+        k=4.4  # 4 - чем больше k тем меньше отворот по x
+        r=1  # 1.2 - чем больше r тем больше отворот по близости (перспектива)
 
-        if area_green is not None:
+        reac_area=700
+
+        if area_green is not None and area_green>=reac_area:
             if x_green < 320:
                 delta_green = -25
             elif x_green > 600:
                 delta_green = 0
-            else:
-                delta_green = 0 - (460+(y_green-115)*r - x_green) / k
+            else:   
+                delta_green = 0 - (640-170+(y_green-115)*r - x_green) / k # 0 - (460+(y_green-115)*r - x_green) / k
             delta_banka=delta_green
-        if area_red is not None:
+        if area_red is not None and area_red>=reac_area:
             if x_red > 320:
                 delta_red = 25
             elif x_red < 40:
                 delta_red = 0
             else:
-                delta_red = 0 + (x_red - (180-(y_red-115)*r)) / k
+                delta_red = 0 + (x_red - (170-(y_red-115)*r)) / k # 0 + (x_red - (180-(y_red-115)*r)) / k
             delta_banka=delta_red
 
         if area_green is not None and area_red is not None:
@@ -425,35 +434,52 @@ while 1:
 
         delta_reg = max_l - max_r + porog
 
-        p = int(delta_reg * 0.5 + (delta_reg - delta_reg_old) * 0.6)
+        p = int(delta_reg * 0.4 + (delta_reg - delta_reg_old) * 0.7)
         delta_reg_old = delta_reg
 
 
         if max_r==0:
-            p=12
+            p=13
         if max_l==0:
-            p=-12
+            p=-13
 
         if delta_banka!=0:
             p=delta_banka
+
 
         if p>=25:
             p=25
         if p<=-25:
             p=-25
 
-        if (find_wall(HSV_black) and delta_banka==0) or (max_r==0 and max_l==0) :
+        flag_wall=find_wall(HSV_black)
+        if (flag_wall and delta_banka==0) or (max_r==0 and max_l==0) :
             if direction==1:
                 p=25
             else:
                 p=-25
 
+        if -2<p<2:
+            p=0
+
         robot.serv(-p)
 
         if global_speed<=0:
             global_speed=0
-        robot.move(global_speed)   
+        
+        speed=global_speed
 
+        if p>=-6 or p<=6:
+            speed=global_speed+6
+            robot.light(0,255,0)
+
+        if flag_wall or p>=16 or p<=-16:
+            speed=global_speed-1
+            robot.light(255,0,0)
+
+        if speed==global_speed:
+            robot.light(0,0,0)
+        robot.move(speed)
     if state=='finish':
         robot.move(0)
 
@@ -485,6 +511,7 @@ while 1:
 
         if robot.button()==0:
             robot.tone(120)
+
         if k==56:
             robot.light(255,0,0)
         if k==57:
@@ -493,6 +520,7 @@ while 1:
             robot.light(0,0,255)
         if k==55:
             robot.light(255,255,255)  
+
     telemetry()
 
     robot.set_frame(frame, 40)

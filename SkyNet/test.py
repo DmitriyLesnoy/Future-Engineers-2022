@@ -1,5 +1,6 @@
 import cv2
 from cv2 import FILE_STORAGE_FORMAT_JSON
+from cv2 import FILE_STORAGE_WRITE_BASE64
 import RobotAPI as rapi
 import numpy as np
 import serial
@@ -24,20 +25,28 @@ p=0
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 HSV_black=[[6,17,0],[100,230,70]]
-HSV_orange=[[0,62,115],[12,221,255]]
-HSV_blue=[[100,70,0],[170,255,255]]
 
-9
+HSV_orange=[[0,28,85],[63,133,255]]
+HSV_blue=[[100,50,50],[170,210,200]]
+
+HSV_red=[[119,110,48],[180,255,255]]
+HSV_green=[[70,77,73],[90,255,189]]
+
+
 # ?????????????????????????????????????????????
 
 global_speed=34
-
+speed=global_speed
 
 states=['start','main','manual','HSV','finish']
 
 porog=0
 delta_reg=0
 delta_reg_old=0
+
+delta_banka=0
+area_green=0
+area_red=0
 
 count_lines=0
 
@@ -46,6 +55,11 @@ pause_finish = 0.9
 
 timer_sec=None
 secundomer=0
+
+timer_banka=0
+flag_banka=False
+delta_banka=0
+delta_banka_old=0
 
 direction=None
 
@@ -145,18 +159,130 @@ def find_start_line(hsv):
 
     return False
 
+def find_wall(hsv):
+    x1, y1 = 320-7, 200
+    x2, y2 = 320+7, 330
+
+    datb1 = frame[y1:y2,x1:x2]
+    cv2.rectangle(frame, (x1, y1),(x2, y2), (150, 150, 150), 2)
+
+    dat1 = cv2.GaussianBlur(datb1, (5, 5), cv2.BORDER_DEFAULT)
+    hsv1 = cv2.cvtColor(dat1, cv2.COLOR_BGR2HSV)
+    maskd1 = cv2.inRange(hsv1,np.array(hsv[0]), np.array(hsv[1]))
+
+    area_wall = None
+    flag_wall=False
+
+    gray1 = cv2.cvtColor(maskd1, cv2.COLOR_GRAY2BGR)
+    # frame[y1:y2,x1:x2] = gray1
+
+    imd1, contours, hod1 = cv2.findContours(maskd1, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    
+    max=0
+
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        area = cv2.contourArea(contour)
+        if area > 100:
+            if area>max:
+                max=area
+
+                area_wall = area
+
+            if area_wall>470:
+                flag_wall=True
+
+            if flag_wall:
+                cv2.rectangle(datb1, (x, y), (x+w, y+h), (255,0,255), 2)
+
+    return flag_wall
+
+def find_box(hsv,color):
+    x1, y1 = 0, 240
+    x2, y2 = 640, 400
+
+    datb1 = frame[y1:y2,x1:x2]
+    cv2.rectangle(frame, (x1, y1),(x2, y2), (0, 100, 100), 2)
+
+    dat1 = cv2.GaussianBlur(datb1, (5, 5), cv2.BORDER_DEFAULT)
+    hsv1 = cv2.cvtColor(dat1, cv2.COLOR_BGR2HSV)
+    maskd1 = cv2.inRange(hsv1,np.array(hsv[0]), np.array(hsv[1]))
+
+    # RED
+
+    x_banka = None
+    y_banka = None
+    area_banka = None
+
+
+    gray1 = cv2.cvtColor(maskd1, cv2.COLOR_GRAY2BGR)
+    # frame[y1:y2,x1:x2] = gray1
+
+    imd1, contours, hod1 = cv2.findContours(maskd1, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    
+    max=0
+
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        area = cv2.contourArea(contour)
+        if area > 400:
+            if area>max:
+                max=area
+                x_banka = x + w/2
+                y_banka = y + h
+                area_banka = area
+
+            if color=='green':
+                c = (0, 255, 0)
+                c1=(75,255,75)
+            else:
+                c= (0,0,255)
+                c1=(75,75,200)
+
+
+            cv2.rectangle(datb1, (x, y), (x+w, y+h), c, 2)
+            # cv2.putText(datb1, str(x_banka)+str(y_    banka), (x, y), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1,c1, 2)            # robot.text_to_frame(frame, area_banka, (x + w, y + h), c, 2) 
+            cv2.putText(datb1, str(area_banka), (x, y), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1,c1, 2)            # robot.text_to_frame(frame, area_banka, (x + w, y + h), c, 2) 
+            cv2.putText(datb1, str(int(x_banka)) +"-"+ str(int(y_banka)), (x, y-20), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1,c1, 2)            # robot.text_to_frame(frame, area_banka, (x + w, y + h), c, 2) 
+
+    return x_banka, y_banka, area_banka
+
+
+
 def telemetry():
     robot.text_to_frame(frame, 'state = ' + str(state), 10, 20,(255,122,122))
-    robot.text_to_frame(frame, 'speed = ' + str(global_speed), 10, 40,(0,0,255))
-    robot.text_to_frame(frame, 'serv = ' + str(p), 10, 60,(0,255,0))
-    robot.text_to_frame(frame, 'fps = ' + str(fps), 510, 20)
-    robot.text_to_frame(frame, 'key = ' + str(k), 510, 40,(122,122,255))
-    robot.text_to_frame(frame, "Time: " + str(secundomer), 290, 20,(0,0,0)) 
+
+    s=(255,255,255)
+    if speed>global_speed:
+        s=(0,255,0)
+    if speed<global_speed:
+        s=(0,0,255)
+    robot.text_to_frame(frame, 'speed = ' + str(speed), 10, 40,s)
+
+    robot.text_to_frame(frame, 'serv = ' + str(int(p)), 10, 60,(255,255,0))
+    robot.text_to_frame(frame, 'fps = ' + str(fps), 505, 20)
+    robot.text_to_frame(frame, 'key = ' + str(k), 505, 40,(122,122,255))
+    if area_green is None and area_red is None:
+        d=(255,255,255)
+
+    if area_green is not None:
+        d=(0,255,0)
+    if area_red is not None:
+        d=(0,0,255)
+    if area_green is not None and area_red is not None:
+        if area_green>area_red:
+            d=(0,255,0)
+        else:
+            d=(0,0,255)
+
+    robot.text_to_frame(frame, 'banka = ' + str(int(delta_banka)), 10, 80,d)
+
+    robot.text_to_frame(frame, "Time: " + str(int(secundomer)), 290, 20,(0,0,0)) 
     if direction!=None:
         if dir==1:
-            robot.text_to_frame(frame, 'Lines(+) = ' + str(count_lines), 10, 80,(0,0,0))
+            robot.text_to_frame(frame, 'Lines(+) = ' + str(count_lines), 485, 60,(0,0,0))
         else:
-            robot.text_to_frame(frame, "Lines(-) = " + str(count_lines), 10, 80,(0,0,0))
+            robot.text_to_frame(frame, "Lines(-) = " + str(count_lines), 470, 60,(50,50,50))
 
 nup=0
 mv=0
@@ -199,18 +325,18 @@ while 1:
         state='HSV'
 
     if state=='start':
+        robot.move(0)   
+        robot.serv(0)
         if robot.button()==0 or k==50:
-            robot.move(0)
-            robot.serv(0)
             state='main'
         else:
             state='start'
     
     if state=='main':
 
-        # if timer_sec==None:
-        #     timer_sec=time.time()
-        # secundomer=time.time()-timer_sec
+        if timer_sec==None:
+            timer_sec=time.time()
+        secundomer=time.time()-timer_sec
 
         if k==187:
             global_speed+=1
@@ -240,15 +366,15 @@ while 1:
                 flag_line=True
                 timer_line=time.time()
 
-            if time.time()>=timer_line+0.5 and flag_line:
+            if time.time()>=timer_line+0.7 and flag_line:
                 flag_line=False
                 count_lines+=1
 
         if count_lines >= 12:
-            pause_finish = 30 / global_speed-0.5
-            # if time.time()>timer_state+1:
+            pause_finish = 1
             if timer_finish is None:
                 timer_finish = time.time() + pause_finish
+            if time.time()>=timer_finish+pause_finish:
                 robot.serv(0)
                 robot.move(20,False)
                 time.sleep(0.1)
@@ -260,34 +386,104 @@ while 1:
 
 
 
+        x_green,y_green,area_green=find_box(HSV_green,'green')
+        x_red,y_red,area_red=find_box(HSV_red,'red')
+
+        delta_banka=0
+        k=3.9  # 4 - чем больше k тем меньше отворот по x
+        r=1.2  # 1.2 - чем больше r тем больше отворот по близости (перспектива)
+
+        reac_area=700
+
+        if area_green is not None and area_green>=reac_area:
+            if x_green < 320:
+                delta_green = -25
+            elif x_green > 600:
+                delta_green = 0
+            else:   
+                delta_green = 0 - (640-180+(y_green-115)*r - x_green) / k # 0 - (460+(y_green-115)*r - x_green) / k
+            delta_banka=delta_green
+        if area_red is not None and area_red>=reac_area:
+            if x_red > 320:
+                delta_red = 25
+            elif x_red < 40:
+                delta_red = 0
+            else:
+                delta_red = 0 + (x_red - (180-(y_red-115)*r)) / k # 0 + (x_red - (180-(y_red-115)*r)) / k
+            delta_banka=delta_red
+
+        if area_green is not None and area_red is not None:
+            if y_green>y_red:
+                delta_banka= delta_green
+            else:
+                delta_banka= delta_red
+
+        if area_green is not None or area_red is not None:
+            timer_banka=time.time()
+            flag_banka=True
+        else:
+            if time.time()>=timer_banka+0.2 and flag_banka:
+                delta_banka=delta_banka_old
+                flag_banka=False
+
         max_l=black_line_left(HSV_black)
         max_r=black_line_right(HSV_black)
 
+        porog=15
+
         delta_reg = max_l - max_r + porog
 
-        p = int(delta_reg * 0.5 + (delta_reg - delta_reg_old) * 0.6)
+        p = int(delta_reg * 0.4 + (delta_reg - delta_reg_old) * 0.7)
         delta_reg_old = delta_reg
 
+
         if max_r==0:
-            p=16
+            p=13
         if max_l==0:
-            p=-16
+            p=-13
+
+        if delta_banka!=0:
+            p=delta_banka
+
 
         if p>=25:
             p=25
         if p<=-25:
             p=-25
 
-        # p=0
+        flag_wall=find_wall(HSV_black)
+        if (flag_wall and delta_banka==0) or (max_r==0 and max_l==0) :
+            if direction==1:
+                p=25
+            else:
+                p=-25
+
+        if -2<p<2:
+            p=0
 
         robot.serv(-p)
 
         if global_speed<=0:
             global_speed=0
-        robot.move(global_speed)   
+        
+        speed=global_speed
 
+        if p>=-6 or p<=6:
+            speed=global_speed+4
+            robot.light(0,255,0)
+        if p>=18 or p<=-18:
+            speed=global_speed+2
+            robot.light(0,120,0)
+
+        if flag_wall:
+            speed=global_speed
+            robot.light(255,0,0)
+
+        if speed==global_speed:
+            robot.light(0,0,0)
+        robot.move(speed)
     if state=='finish':
-        pass
+        robot.move(0)
 
 
     if state=='manual':
@@ -316,6 +512,15 @@ while 1:
 
         if robot.button()==0:
             robot.tone(120)
+
+        if k==56:
+            robot.light(255,0,0)
+        if k==57:
+            robot.light(0,255,0)
+        if k==48:
+            robot.light(0,0,255)
+        if k==55:
+            robot.light(255,255,255)  
 
     telemetry()
 
