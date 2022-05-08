@@ -20,6 +20,7 @@ fps1 = 0
 fps_time = 0
 
 p=0
+side_reg=0
 
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -313,6 +314,17 @@ while 1:
 
         delta_reg = max_l - max_r + porog
 
+        if max_l>0 and max_r>0:
+            if max_l+max_r>145:
+                side_reg=145
+            else:
+                side_reg=95
+
+        if max_r>side_reg:
+            max_r=side_reg
+        if max_l>side_reg:
+            max_l=side_reg
+
         p = int(delta_reg * 0.5 + (delta_reg - delta_reg_old) * 0.6)
         delta_reg_old = delta_reg
 
@@ -353,7 +365,8 @@ while 1:
         robot.move(global_speed)   
 
     if state=='finish':
-        robot.move(5,False)
+        robot.serv(0)
+        robot.move(15,False)
 
 
     if state=='manual':

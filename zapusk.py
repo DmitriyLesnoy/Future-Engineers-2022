@@ -20,6 +20,7 @@ fps1 = 0
 fps_time = 0
 
 p=0
+side_reg=0
 
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -30,7 +31,7 @@ HSV_blue=[[100,70,0],[170,255,255]]
 9
 # ?????????????????????????????????????????????
 
-global_speed=34
+global_speed=32
 
 
 states=['start','main','manual','HSV','finish']
@@ -145,6 +146,44 @@ def find_start_line(hsv):
 
     return False
 
+def find_wall(hsv):
+    x1, y1 = 320-20, 300
+    x2, y2 = 320+20, 330
+
+    datb1 = frame[y1:y2,x1:x2]
+    cv2.rectangle(frame, (x1, y1),(x2, y2), (150, 150, 150), 2)
+
+    dat1 = cv2.GaussianBlur(datb1, (5, 5), cv2.BORDER_DEFAULT)
+    hsv1 = cv2.cvtColor(dat1, cv2.COLOR_BGR2HSV)
+    maskd1 = cv2.inRange(hsv1,np.array(hsv[0]), np.array(hsv[1]))
+
+    area_wall = None
+    flag_wall=False
+
+    gray1 = cv2.cvtColor(maskd1, cv2.COLOR_GRAY2BGR)
+    # frame[y1:y2,x1:x2] = gray1
+
+    imd1, contours, hod1 = cv2.findContours(maskd1, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    
+    max=0
+
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        area = cv2.contourArea(contour)
+        if area > 100:
+            if area>max:
+                max=area
+
+                area_wall = area
+
+            if area_wall>350:
+                flag_wall=True
+
+            if flag_wall:
+                cv2.rectangle(datb1, (x, y), (x+w, y+h), (255,0,255), 2)
+
+    return flag_wall
+
 def telemetry():
     robot.text_to_frame(frame, 'state = ' + str(state), 10, 20,(255,122,122))
     robot.text_to_frame(frame, 'speed = ' + str(global_speed), 10, 40,(0,0,255))
@@ -167,12 +206,21 @@ robot.serv(0)
 time.sleep(0.15)
 
 robot.tone(120)
+robot.light(255,0,0)
 time.sleep(0.15)
+
 robot.tone(150)
+robot.light(0,255,0)
+
 time.sleep(0.15)
+
 robot.tone(180)
+robot.light(0,0,255)
+
 time.sleep(0.15)
+
 robot.tone(210)
+robot.light(255,255,255)
 
 state='start'
 
@@ -200,6 +248,7 @@ while 1:
 
     if state=='start':
         if robot.button()==0 or k==50:
+            robot.light(0,0,0)
             robot.move(5)
             robot.serv(0)
             state='main'
@@ -240,7 +289,7 @@ while 1:
                 flag_line=True
                 timer_line=time.time()
 
-            if time.time()>=timer_line+0.7 and flag_line:
+            if time.time()>=timer_line+0.5 and flag_line:
                 flag_line=False
                 count_lines+=1
 
@@ -265,13 +314,42 @@ while 1:
 
         delta_reg = max_l - max_r + porog
 
+        if max_l>0 and max_r>0:
+            if max_l+max_r>145:
+                side_reg=145
+            else:
+                side_reg=95
+
+        if max_r>side_reg:
+            max_r=side_reg
+        if max_l>side_reg:
+            max_l=side_reg
+
         p = int(delta_reg * 0.5 + (delta_reg - delta_reg_old) * 0.6)
         delta_reg_old = delta_reg
 
+        robot.light(0,0,0)
         if max_r==0:
-            p=18
+            p=16
+            robot.light(0,255,0)
+
         if max_l==0:
-            p=-18
+            p=-16
+            robot.light(0,0,255)
+
+        if find_wall(HSV_black):
+            robot.light(255,0,0)
+
+            if direction==1:
+                p=25
+            if direction==-1:
+                p=-25
+            else:
+                pass
+                    
+
+
+        
 
         if p>=25:
             p=25
@@ -287,7 +365,8 @@ while 1:
         robot.move(global_speed)   
 
     if state=='finish':
-        robot.move(5,False)
+        robot.serv(0)
+        robot.move(15,False)
 
 
     if state=='manual':
@@ -316,7 +395,13 @@ while 1:
 
         if robot.button()==0:
             robot.tone(120)
-
+        if k==56:
+            robot.light(255,0,0)
+        if k==57:
+            robot.light(0,255,0)
+        if k==48:
+            robot.light(0,0,255)
+        if k==55:
+            robot.light(255,255,255)  
     telemetry()
-
     robot.set_frame(frame, 40)

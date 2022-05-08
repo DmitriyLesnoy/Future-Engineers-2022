@@ -391,9 +391,9 @@ while 1:
         k=4.4  # 4 - чем больше k тем меньше отворот по x
         r=1  # 1.2 - чем больше r тем больше отворот по близости (перспектива)
 
-        reac_area=700
+        react_area=700
 
-        if area_green is not None and area_green>=reac_area:
+        if area_green is not None and area_green>=react_area:
             if x_green < 320:
                 delta_green = -25
             elif x_green > 600:
@@ -401,7 +401,7 @@ while 1:
             else:   
                 delta_green = 0 - (640-170+(y_green-115)*r - x_green) / k # 0 - (460+(y_green-115)*r - x_green) / k
             delta_banka=delta_green
-        if area_red is not None and area_red>=reac_area:
+        if area_red is not None and area_red>=react_area:
             if x_red > 320:
                 delta_red = 25
             elif x_red < 40:
