@@ -1,4 +1,3 @@
-from multiprocessing.sharedctypes import Value
 import RPi.GPIO as GPIO
 import pigpio
 import time
@@ -59,6 +58,10 @@ class Motor:
         self.started = True
 
     def write(self, force: int, clockwise = True):
+        if force<=0:
+            force=0
+        if force>=255:
+            force=255
         assert self.started, "Start servo before using this method."
         if not self.timer_enabled or time.time() > self.timer:
             if clockwise:
@@ -96,6 +99,7 @@ class Servo:
         self.started = True
 
     def write(self, angle: int):
+
         assert self.started, "Start servo before using this method."
         self.angle = angle + 90
         duty = arduino_map(self.angle, 0, 180, 500, 2500)
@@ -122,7 +126,7 @@ class Buzz:
     def write(self,tone=120):
         pi.set_PWM_dutycycle(self.pin, tone)
         # pi.write(self.pin,1)
-        time.sleep(0.2)
+        time.sleep(0.1)
         pi.set_PWM_dutycycle(self.pin, 0)
 
 
@@ -179,10 +183,14 @@ class GPIORobotApi(rapi.RobotAPI):
     def move(self, force: int, clockwise = True):
         self._motor.write(force, clockwise)
 
-    def serv(self, angle: int):
-        self._servo.write(angle+8)
+    def serv(self, angle: int):    
+        if angle>=60:
+            angle=60
+        if angle<=-65:
+            angle=-65       
+        self._servo.write(angle-5)
 
-    def tone(self,tone: int):
+    def tone(self,tone=255):
         self._buzz.write(tone)
 
     def button(self):

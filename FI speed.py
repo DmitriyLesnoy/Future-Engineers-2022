@@ -1,4 +1,4 @@
-from multiprocessing import cpu_count
+from re import T
 import cv2
 import RobotAPI as rapi
 import numpy as np
@@ -33,12 +33,12 @@ HSV_orange=[[0,20 ,80],[25,255,255]]
 HSV_blue=[[100,90,20],[130,255,170]]
 
 HSV_red=[[150,110,70],[180,255,255],[0,70,120],[20,230,240]]
-HSV_green=[[64,120,60],[87,230,200],[0,0,0],[0,0,0]]
+HSV_green=[[60,100,60],[90,255,255],[0,0,0],[0,0,0]]
 
 
 # ?????????????????????????????????????????????
 
-global_speed=100
+global_speed=140
 
 
 states=['start','main','manual','HSV','finish']
@@ -106,11 +106,14 @@ direction=None
 def black_line_left(banka,hsv=HSV_black,hsv_blue=HSV_blue):
 
 
-    x1,y1=0,275
-    x2,y2=45,480
+    x1,y1=0,270
+    x2,y2=20,480
 
     if banka and direction==-1:
-        y1=270+65
+        y1=275+75
+
+    if banka and direction==-1:
+        y1=270-10
     # global xb1, yb1, xb2, yb2, lowb, upb, sr, max1
 
 
@@ -144,10 +147,12 @@ def black_line_left(banka,hsv=HSV_black,hsv_blue=HSV_blue):
 
 def black_line_right(banka,hsv=HSV_black,hsv_blue=HSV_blue):
 
-    x1,y1=640-45,275
+    x1,y1=640-20,270
     x2,y2=640,480
     if banka and direction==1:
-        y1=270+65
+        y1=275+75
+    if banka and direction==1:
+        y1=270-10
     # global xb1, yb1, xb2, yb2, lowb, upb, sr, max1
 
 
@@ -207,14 +212,10 @@ def find_start_line(hsv):
 
     return False
 
-def find_wall(direction,hsv=HSV_black):
-    if direction==-1:
-        x1, y1 = 180-13, 290
-        x2, y2 = 180+3+13, 350  
+def find_wall(hsv=HSV_black):
 
-    if direction==1:
-        x1, y1 = 640-180-13, 290 
-        x2, y2 = 640-180+13, 350
+    x1, y1 = 320-10, 400 
+    x2, y2 = 320+10, 440
 
     datb1 = frame[y1:y2,x1:x2]
     cv2.rectangle(frame, (x1, y1),(x2, y2), (150, 150, 150), 2)
@@ -251,8 +252,8 @@ def find_wall(direction,hsv=HSV_black):
     return flag_wall
 
 def find_box(hsv,color,hsv_o=HSV_orange):
-    x1, y1 = 30, 230
-    x2, y2 = 640-30, 480
+    x1, y1 = 0, 230
+    x2, y2 = 640-0, 480
 
     datb1 = frame[y1:y2,x1:x2]
     # cv2.rectangle(frame, (x1, y1),(x2, y2), (0, 100, 100), 2)
@@ -303,7 +304,7 @@ def find_box(hsv,color,hsv_o=HSV_orange):
 
 def count_box(hsv,color,hsv_o=HSV_orange):
     x1, y1 = 0, 365
-    x2, y2 = 640, 400
+    x2, y2 = 640, 365+20
 
     datb1 = frame[y1:y2,x1:x2]
     cv2.rectangle(frame, (x1, y1),(x2, y2), (0, 130, 130), 2)
@@ -464,7 +465,7 @@ while 1:
                     timer_line=time.time() 
 
 
-            if time.time()>=timer_line+0.25 and flag_line:
+            if time.time()>=timer_line+0.125 and flag_line:
                 flag_line=False
                 count_lines+=1
 
@@ -496,7 +497,7 @@ while 1:
                 robot.tone(255)
                 robot.tone(130)
                 robot.tone(50)
-                # print(box_map,'b_m')
+                print(box_map,'b_m')
                 # print(map_times,'m_t')
                 # print(zona_times,'z_t')
                 print(procent_map,'p_z')
@@ -510,13 +511,13 @@ while 1:
 
         delta_banka=0
         
-        p=1  # перспектива
-        k=-0.2
+        p=1.3  # перспектива
+        k=-0.15
         d=0.15
-        react_area=1000
+        react_area=750
 
         if area_green is not None and area_green>=react_area:
-            e=(round(280 - 30 + cord_green[1]*p) - cord_green[0])
+            e=(round(280 - 5 + cord_green[1]*p) - cord_green[0])
             d_green=e*k+(e-d_green_o)*d
             d_green_o=e
             delta_banka=d_green
@@ -526,7 +527,7 @@ while 1:
        
        
         if area_red is not None and area_red>=react_area:
-            e=(round(280 + 30 - cord_red[1]*p) - cord_red[0])
+            e=(round(280 + 5 - cord_red[1]*p) - cord_red[0])
             d_red= e*k+(e-d_red_o)*d
             d_red_o=e
             delta_banka=d_red
@@ -550,7 +551,7 @@ while 1:
         else:
             if time.time()<=timer_banka+0.15:
                 delta_banka=0
-            if time.time()>=timer_banka+0.65:
+            if time.time()>=timer_banka+0.55:
                 flag_min=False
             if count_lines>=1 and flag_timer_map==False:
                 timer_map=int((time.time()-timer_zone)*10)/10
@@ -665,16 +666,20 @@ while 1:
         
         delta_reg = max_l - max_r + porog
 
-        p = int(delta_reg * 0.6 + (delta_reg - delta_reg_old) * 0.75)  # 0.8 0.9
+        p = int(delta_reg * 0.2 + (delta_reg - delta_reg_old) * 0.2)  # 0.8 0.9
         delta_reg_old = delta_reg
 
 
         if max_r==0:
-            p=45
+            p=40
         if max_l==0:
-            p=-45
+            p=-40
         if max_l+max_r==0 and direction is not None:
             p=60*direction
+        if find_wall():
+            p=60*direction
+            if flag_line==True:
+                flag_line=False
 
         if red or green:
             p=delta_banka

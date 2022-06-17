@@ -1,3 +1,4 @@
+from multiprocessing import cpu_count
 import cv2
 import RobotAPI as rapi
 import numpy as np
@@ -29,7 +30,7 @@ p=0
 HSV_black=[[0,0,0],[180,255,70]]
 
 HSV_orange=[[0,20 ,80],[25,255,255]]
-HSV_blue=[[100,90,20],[130,255,170]]
+HSV_blue=[[100,30,10],[160,255,165]]
 
 HSV_red=[[150,110,70],[180,255,255],[0,70,120],[20,230,240]]
 HSV_green=[[64,120,60],[87,230,200],[0,0,0],[0,0,0]]
@@ -510,8 +511,8 @@ while 1:
         delta_banka=0
         
         p=1  # перспектива
-        k=-0.35
-        d=0.3
+        k=-0.2
+        d=0.15
         react_area=1000
 
         if area_green is not None and area_green>=react_area:
