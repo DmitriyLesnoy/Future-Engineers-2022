@@ -15,6 +15,9 @@ GPIO_RED=27
 GPIO_BLUE=17
 GPIO_GREEN=22
 
+GPIO_headlight1=18
+GPIO_headlight2=23
+GPIO_headlight3=24
 
 WORK_TIME = 10
 DUTY_CYCLE = 50
@@ -143,10 +146,13 @@ class Button:
         return pi.read(self.pin_bt)
 
 class Light:
-    def __init__(self,GPIO_red,GPIO_green,GPIO_blue):
+    def __init__(self,GPIO_red,GPIO_green,GPIO_blue,GPIO_headlight1,GPIO_headlight2,GPIO_headlight3):
         self._r=GPIO_red
         self._g=GPIO_green
         self._b=GPIO_blue
+        self._1=GPIO_headlight1
+        self._2=GPIO_headlight2
+        self._3=GPIO_headlight3
         pass
 
     def start(self):
@@ -155,11 +161,19 @@ class Light:
         pi.set_mode(self._g, pigpio.OUTPUT)
         pi.set_mode(self._b, pigpio.OUTPUT)
 
+        pi.set_mode(self._1, pigpio.OUTPUT)
+        pi.set_mode(self._2, pigpio.OUTPUT)
+        pi.set_mode(self._3, pigpio.OUTPUT)
+
     def write(self,red,green,blue):
         pi.set_PWM_dutycycle(self._r, 255-red)
         pi.set_PWM_dutycycle(self._g, 255-green)
         pi.set_PWM_dutycycle(self._b, 255-blue)
 
+    def headlight(self,light=255):
+        pi.set_PWM_dutycycle(self._1, light)
+        pi.set_PWM_dutycycle(self._2, light)
+        pi.set_PWM_dutycycle(self._3, light)
 
 class GPIORobotApi(rapi.RobotAPI):
     def __init__(self, motor_pwm_pin = GPIO_PWM_MOTOR, motor_cw_pin = GPIO_PIN_CW, motor_ccw_pin = GPIO_PIN_CCW, servo_pin = GPIO_PWM_SERVO, flag_video=True, flag_keyboard=True, flag_pyboard=False, udp_stream=True, udp_turbo_stream=True, udp_event=True):
@@ -177,7 +191,7 @@ class GPIORobotApi(rapi.RobotAPI):
         self._button = Button(GPIO_button)
         self._button.start()
 
-        self._light = Light(GPIO_RED,GPIO_GREEN,GPIO_BLUE)
+        self._light = Light(GPIO_RED,GPIO_GREEN,GPIO_BLUE,GPIO_headlight1,GPIO_headlight2,GPIO_headlight3)
         self._light.start()
 
     def move(self, force: int, clockwise = True):
@@ -186,9 +200,9 @@ class GPIORobotApi(rapi.RobotAPI):
     def serv(self, angle: int):    
         if angle>=60:
             angle=60
-        if angle<=-65:
-            angle=-65       
-        self._servo.write(angle-5)
+        if angle<=-60:
+            angle=-60       
+        self._servo.write(angle+4)
 
     def tone(self,tone=255):
         self._buzz.write(tone)
@@ -199,6 +213,8 @@ class GPIORobotApi(rapi.RobotAPI):
     def light(self, red, green, blue):
         self._light.write(red,green,blue)
 
+    def headlight(self,light):
+        self._light.headlight(light)
 
 if __name__ == "__main__":
     m = Motor(GPIO_PWM_MOTOR, GPIO_PIN_CW, GPIO_PIN_CCW)

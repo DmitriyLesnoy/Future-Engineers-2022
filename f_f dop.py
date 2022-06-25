@@ -1,3 +1,4 @@
+from os import times_result
 import cv2
 import RobotAPI as rapi
 import numpy as np
@@ -33,11 +34,12 @@ HSV_blue=[[100,90,20],[130,255,170]]
 
 HSV_red=[[150,110,70],[180,255,255],[0,70,120],[20,230,240]]
 HSV_green=[[50,100,55],[90,255,200],[0,0,0],[0,0,0]]
+HSV_yellow=[[25,89,130], [45,255,255], [0,0,0],[0,0,0]]
 
 
 # ?????????????????????????????????????????????
 
-global_speed=255
+global_speed=100
 
 
 states=['start','main','manual','HSV','finish']
@@ -46,7 +48,7 @@ porog=0
 delta_reg=0
 delta_reg_old=0
 
-d_red_o,d_green_o=0,0
+d_red_o,d_green_o,d_yellow_o=0,0,0
 
 delta_banka=0
 delta_red=0
@@ -55,6 +57,9 @@ area_green=0
 area_red=0
 red=False
 green=False
+yellow=False
+
+flag_yellow=-1
 
 flag_red=False
 flag_green=False
@@ -304,10 +309,14 @@ def find_start_line(hsv):
 
     return False
 
-def find_wall(hsv=HSV_black):
+def find_wall(direction,hsv=HSV_black):
+    if direction==-1:
+        x1, y1 = 180-13, 290
+        x2, y2 = 180+3+13, 350  
 
-    x1, y1 = 320-15, 320 
-    x2, y2 = 320+15, 320+45
+    if direction==1:
+        x1, y1 = 640-180-13, 290 
+        x2, y2 = 640-180+13, 350
 
     datb1 = frame[y1:y2,x1:x2]
     cv2.rectangle(frame, (x1, y1),(x2, y2), (150, 150, 150), 2)
@@ -344,11 +353,10 @@ def find_wall(hsv=HSV_black):
     return flag_wall
 
 def find_box(hsv,color,hsv_o=HSV_orange):
-    x1, y1 = 30, 245
+    x1, y1 = 30, 230
     x2, y2 = 640-30, 480-80
 
     datb1 = frame[y1:y2,x1:x2]
-    cv2.rectangle(frame, (x1, y1),(x2, y2), (0, 100, 100), 2)
 
     # dat1 = cv2.GaussianBlur(datb1, (5, 5), cv2.BORDER_DEFAULT)
     hsv1 = cv2.cvtColor(datb1, cv2.COLOR_BGR2HSV)
@@ -376,8 +384,8 @@ def find_box(hsv,color,hsv_o=HSV_orange):
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
         area = cv2.contourArea(contour)
-        if area > 250:
-            if y+h>max and (y<(y2-y1-65) or (7<(x+w/2)<(x2-x1-70))):
+        if area > 340:
+            if y+h>max and (y<(y2-y1-55) or (60<(x+w/2)<(x2-x1-60))):
                 max=y+h
                 x_banka = x + w/2
                 y_banka = y + h
@@ -389,15 +397,15 @@ def find_box(hsv,color,hsv_o=HSV_orange):
     # cv2.putText(datb1, str(area_banka), (x1, y1+10), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1,(255,255,255), 2)            # robot.text_to_frame(frame, area_banka, (x + w, y + h), c, 2) 
     cv2.putText(datb1, str(int(x_banka)) +"-"+ str(int(y_banka)), (x11, y11), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1,(255,255,255), 2)            # robot.text_to_frame(frame, area_banka, (x + w, y + h), c, 2) 
     cv2.putText(datb1, color, (x11, y11+15), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1,(255,0,0), 2)            # robot.text_to_frame(frame, area_banka, (x + w, y + h), c, 2) 
+    # cv2.rectangle(frame, (x1, y1),(x2, y2), (0, 100, 100), 2)
 
     return [x_banka, y_banka], area_banka
 
 def count_box(hsv,color,hsv_o=HSV_orange):
-    x1, y1 = 0, 370
-    x2, y2 = 640, 380
+    x1, y1 = 0, 365
+    x2, y2 = 640, 385
 
     datb1 = frame[y1:y2,x1:x2]
-    cv2.rectangle(frame, (x1, y1),(x2, y2), (0, 130, 130), 2)
 
     dat1 = cv2.GaussianBlur(datb1, (5, 5), cv2.BORDER_DEFAULT)
     hsv1 = cv2.cvtColor(dat1, cv2.COLOR_BGR2HSV)
@@ -433,14 +441,16 @@ def count_box(hsv,color,hsv_o=HSV_orange):
 
             if color=='green':
                 c = (0, 122, 0) 
-            else:
+            elif color=='red':
                 c= (0,0,122)
-
+            elif color=='yellow':
+                c= (0,255,255)
             if area_banka>170:
                 flag=True
             
 
             cv2.rectangle(datb1, (x, y), (x+w, y+h), c, 2)
+    # cv2.rectangle(frame, (x1, y1),(x2, y2), (0, 130, 130), 2)
 
     return flag
 
@@ -453,15 +463,13 @@ def telemetry():
 
 
     robot.text_to_frame(frame, 'banka = ' + str(int(delta_banka)), 10, 80,(255,255,255))
-    robot.text_to_frame(frame,'min'+str(flag_min),10,100,(255,255,255))
-    robot.text_to_frame(frame,str(flag_green)+str(flag_red),150,100,(0,255,255))
-
-    robot.text_to_frame(frame,str(box_map),10,120,(255,255,255))
-    robot.text_to_frame(frame,str(map_times),10,140,(255,255,255))
-    robot.text_to_frame(frame,str(zona_times),10,160,(255,255,255))
-    robot.text_to_frame(frame,str(procent_map),10,180,(255,255,255))
-
+    robot.text_to_frame(frame,'gr-'+str(flag_green)+' re-'+str(flag_red),10,100,(255,255,255))
     robot.text_to_frame(frame, "FI - Time: " + str(int(secundomer)), 290, 20,(0,0,0)) 
+
+    robot.text_to_frame(frame,str(box_map)+'b_m',10,120,(255,255,255))
+    robot.text_to_frame(frame,str(map_times)+'m_t',10,140,(255,255,255))
+    robot.text_to_frame(frame,str(zona_times)+'z_t',10,160,(255,255,255))
+    robot.text_to_frame(frame,str(procent_map)+'p_m',10,180,(255,255,255))
 
     if direction is not None:
         if direction==1:
@@ -552,7 +560,7 @@ while 1:
             timer_line = time.time()
 
         else:
-            if count_lines<=12:
+            if count_lines<=14:
                 if time.time()>=timer_line+1:
                     if is_orange and direction==-1:
                         flag_line=True
@@ -602,16 +610,17 @@ while 1:
 
         cord_green,area_green=find_box(HSV_green,'green')
         cord_red,area_red=find_box(HSV_red,'red')
+        cord_yellow,area_yellow=find_box(HSV_yellow,'yellow')
 
         delta_banka=0
         
-        p=1.05  # перспектива
+        p=1  # перспектива
         k=-0.2
         d=0.15
         react_area=500
 
         if area_green is not None and area_green>=react_area:
-            if cord_green[1]<80:
+            if cord_green[1]<110:
                 k1=k/2
                 d1=d/2
             else:
@@ -622,16 +631,17 @@ while 1:
             d_green_o=e
             delta_banka=d_green
             green=True
-            if cord_green[1]>110:
+            if cord_green[1]>130:
                 flag_green=True
             flag_red=False
             timer_green=time.time()
         else:
-            if time.time()>=timer_green+0.05:
+            if time.time()>=timer_green+0.1:
                 green=False
+
        
         if area_red is not None and area_red>=react_area:
-            if cord_red[1]<80:
+            if cord_red[1]<110:
                 k2=k/2
                 d2=d/2
             else:
@@ -642,14 +652,36 @@ while 1:
             d_red_o=e
             delta_banka=d_red
             red=True
-            if cord_red[1]>110:
+            if cord_red[1]>130:
                 flag_red=True
             flag_green=False
             timer_red=time.time()
         else:
-            if time.time()>=timer_red+0.05:
+            if time.time()>=timer_red+0.1:
                 red=False
 
+
+        if area_yellow is not None and area_yellow>=react_area:
+            if cord_yellow[1]<110:
+                k1=k/2
+                d1=d/2
+            else:
+                k1=k
+                d1=d
+            e=(round(280 - 5 + cord_yellow[1]*p) - cord_yellow[0])
+            d_yellow=e*k1+(e-d_yellow_o)*d1
+            d_yellow_o=e
+            delta_banka=d_yellow
+            green=True
+            yellow=True
+            if cord_green[1]>130:
+                flag_green=True
+            flag_red=False
+            timer_green=time.time()
+        else:
+            if time.time()>=timer_green+0.1:
+                green=False
+                yellow=False
 
         if red and green:
             if cord_green[1]>cord_red[1]:
@@ -677,6 +709,7 @@ while 1:
 
         count_green=count_box(HSV_green,'green')
         count_red=count_box(HSV_red,'red')
+        count_yellow=count_box(HSV_yellow,'yellow')
 
         if flag_count:
             if count_lines>=1 and flag_timer_map==False:
@@ -805,9 +838,38 @@ while 1:
             flag_count=True
             c_box=2
 
-
-
-
+        if count_yellow and not count_green and not count_red:
+            if flag_yellow==-1:
+                flag_yellow=0
+        
+        if flag_yellow==0:
+            if direction==1 and is_orange:
+                robot.serv(60)
+                robot.move(global_speed)
+                time.sleep(1.2)
+                robot.serv(-60)
+                robot.move(global_speed,False)
+                time.sleep(1.3)
+                robot.serv(0)
+                robot.move(global_speed)
+                time.sleep(1)
+                count_lines+=1
+                timer_line=time.time()+1
+                flag_yellow=1
+            elif direction==-1 and is_blue:
+                robot.serv(-60)
+                robot.move(global_speed)
+                time.sleep(1.2)
+                robot.serv(60)
+                robot.move(global_speed,False)
+                time.sleep(1.3)
+                robot.serv(0)
+                robot.move(global_speed)
+                time.sleep(1)
+                direction=direction*-1
+                count_lines+=1
+                timer_line=time.time()+1
+                flag_yellow=1
         max_l=black_line_left(HSV_black)
         max_r=black_line_right(HSV_black)
 

@@ -94,6 +94,7 @@ color_box=0
 
 c_line=0
 count_lines=0
+_count_lines=0
 timer_line=0
 flag_line=False
 
@@ -397,7 +398,7 @@ def find_box(hsv,color,hsv_o=HSV_orange):
 
 def count_box(hsv,color,hsv_o=HSV_orange):
     x1, y1 = 0, 365
-    x2, y2 = 640, 400
+    x2, y2 = 640, 385
 
     datb1 = frame[y1:y2,x1:x2]
     cv2.rectangle(frame, (x1, y1),(x2, y2), (0, 130, 130), 2)
@@ -459,6 +460,11 @@ def telemetry():
     robot.text_to_frame(frame,'gr-'+str(flag_green)+' re-'+str(flag_red),10,100,(255,255,255))
     robot.text_to_frame(frame, "FI - Time: " + str(int(secundomer)), 290, 20,(0,0,0)) 
 
+    robot.text_to_frame(frame,str(box_map)+'b_m',10,120,(255,255,255))
+    robot.text_to_frame(frame,str(map_times)+'m_t',10,140,(255,255,255))
+    robot.text_to_frame(frame,str(zona_times)+'z_t',10,160,(255,255,255))
+    robot.text_to_frame(frame,str(procent_map)+'p_m',10,180,(255,255,255))
+
     if direction is not None:
         if direction==1:
             robot.text_to_frame(frame, 'Lin(+)=' + str(count_lines), 485, 60,(0,0,0))
@@ -485,6 +491,8 @@ robot.tone(210)
 
 state='start'
 
+time_o=0
+timer_line=time.time()
 
 while 1:
 
@@ -502,6 +510,8 @@ while 1:
         state='start'
     if k==50:
         state='main'
+        time_o=time.time()
+
     if k==51:
         state='manual'
     if k==52:
@@ -513,6 +523,7 @@ while 1:
         robot.serv(0)
         if robot.button()==0 or k==50:
             state='main'
+            time_o=time.time()
         else:
             state='start'
     
@@ -535,34 +546,24 @@ while 1:
             if is_orange:
                 direction = 1
                 robot.tone(180)
+                count_lines+=1    
             elif is_blue:
                 direction = -1
-
+                count_lines+=1
             flag_line = True
             timer_line = time.time()
 
         else:
-            if count_lines<12:
-                if is_blue and direction==-1:
-                    flag_line=True
-                    timer_line=time.time()
-
-                if is_orange and direction==1:
-                    flag_line=True
-                    timer_line=time.time()
-            else:
-                if is_blue and direction==1:
-                    flag_line=True
-                    timer_line=time.time()
-
-                if is_orange and direction==-1:
-                    flag_line=True
-                    timer_line=time.time() 
-
-
-            if time.time()>=timer_line+0.2 and flag_line:
-                flag_line=False
-                count_lines+=1
+            if count_lines<=12:
+                if time.time()>=timer_line+1:
+                    if is_orange and direction==-1:
+                        flag_line=True
+                        timer_line=time.time()
+                        count_lines+=1
+                    if is_blue and direction==1:
+                        flag_line=True
+                        timer_line=time.time()
+                        count_lines+=1
 
         if count_lines==1 and timer_zone==-1:
             timer_zone=time.time()         
@@ -625,7 +626,7 @@ while 1:
             green=True
             if cord_green[1]>130:
                 flag_green=True
-            falg_red=False
+            flag_red=False
             timer_green=time.time()
         else:
             if time.time()>=timer_green+0.1:
@@ -672,20 +673,32 @@ while 1:
             if time.time()>=timer_banka+0.5:
                 flag_min=False
                 flag_green,flag_red=False,False
-            if count_lines>=1 and flag_timer_map==False:
-                timer_map=int((time.time()-timer_zone)*10)/10
-                flag_timer_map=True
+            # if count_lines>=1 and flag_timer_map==False:
+            #     timer_map=int((time.time()-timer_zone)*10)/10
+            #     flag_timer_map=True
 
 
         count_green=count_box(HSV_green,'green')
         count_red=count_box(HSV_red,'red')
 
-        if flag_count and not count_green and not count_red and time.time()>=timer_count+0.15:
+        if flag_count:
+            if count_lines>=1 and flag_timer_map==False:
+                timer_map=int((time.time()-timer_zone)*10)/10 # - timer_zone
+                flag_timer_map=True
+                if count_lines==1:
+                    zona_times[1]=timer_map
+                if count_lines==2:
+                    zona_times[2]=timer_map
+                if count_lines==3:
+                    zona_times[3]=timer_map
+                if count_lines==4:
+                    zona_times[0]=timer_map
+
+        if flag_count and not count_green and not count_red and time.time()>=timer_count+0.2:
             flag_count=False
             boxes[c_box-1]+=1
 
-
-            if count_lines>=1:
+            if 1<=count_lines<=5:
                 if count_lines==1:
                     box_map_count[1][c_box-1]+=1
                     if box_map[1]==[0,0,0]:
@@ -706,56 +719,76 @@ while 1:
                         box_map[3][2]=c_box
                 if count_lines==4:
                     box_map_count[0][c_box-1]+=1
+                    if box_map[0]==[0,0,0]:
+                        box_map[0][0]=c_box
+                    else:
+                        box_map[0][2]=c_box
 
                 if 2<=count_lines<=4 and flag_timer_map:
                     if box_map_count[int(count_lines)-1]==[2,0]:
                         box_map[int(count_lines)-1]=[1,0,1]
                     if box_map_count[int(count_lines)-1]==[0,2]:
                         box_map[int(count_lines)-1]=[2,0,2]    
+                if count_lines==5 and flag_timer_map:
+                    if box_map_count[0]==[2,0]:
+                        box_map[0]=[1,0,1]
+                    if box_map_count[0]==[0,2]:
+                        box_map[0]=[2,0,2]           
+
+
+
+                if count_lines==2:
+                    timer_map=zona_times[1]
+                if count_lines==3:
+                    timer_map=zona_times[2]
+                if count_lines==4:
+                    timer_map=zona_times[3]
+                if count_lines==5:
+                    timer_map=zona_times[0]
+                
+                c_l=count_lines-1
+                if count_lines==5:
+                    c_l=0
                     
-                    
-                    prcnt=timer_map/map_times[int(count_lines)-1]
+
+                prcnt=timer_map/map_times[c_l]
 
 
 
-                    if count_lines==2:
-                        procent_map[1]=int(prcnt*100)/100
-                        zona_times[1]=timer_map
-                    if count_lines==3:
-                        procent_map[2]=int(prcnt*100)/100
-                        zona_times[2]=timer_map
-                    if count_lines==4:
-                        procent_map[3]=int(prcnt*100)/100
-                        zona_times[3]=timer_map
-                    
+                # prcnt=timer_map/map_times[int(count_lines)-1]
 
-                    if prcnt<=0.28:
-                        if box_map_count[int(count_lines)-1]==[1,0]:
-                            box_map[int(count_lines)-1]=[1,0,0]
-                        if box_map_count[int(count_lines)-1]==[0,1]:
-                            box_map[int(count_lines)-1]=[2,0,0]
-                    elif prcnt>=0.65:
-                        if box_map_count[int(count_lines)-1]==[1,0]:
-                            box_map[int(count_lines)-1]=[0,0,1]
-                        if box_map_count[int(count_lines)-1]==[0,1]:
-                            box_map[int(count_lines)-1]=[0,0,2]
-                    else:
-                        if box_map_count[int(count_lines)-1]==[1,0]:
-                            box_map[int(count_lines)-1]=[0,1,0]
-                        if box_map_count[int(count_lines)-1]==[0,1]:
-                            box_map[int(count_lines)-1]=[0,2,0]
+
+
+                if count_lines==2:
+                    procent_map[1]=int(prcnt*100)/100
+                if count_lines==3:
+                    procent_map[2]=int(prcnt*100)/100
+                if count_lines==4:
+                    procent_map[3]=int(prcnt*100)/100
+                if count_lines==5:
+                    procent_map[0]=int(prcnt*100)/100
+
+                if prcnt<=0.15:
+                    if box_map_count[c_l]==[1,0]:
+                        box_map[c_l]=[1,0,0]
+                    if box_map_count[c_l]==[0,1]:
+                        box_map[c_l]=[2,0,0]
+                elif prcnt>=0.5:
+                    if box_map_count[c_l]==[1,0]:
+                        box_map[c_l]=[0,0,1]
+                    if box_map_count[c_l]==[0,1]:
+                        box_map[c_l]=[0,0,2]
+                else:
+                    if box_map_count[c_l]==[1,0]:
+                        box_map[c_l]=[0,1,0]
+                    if box_map_count[c_l]==[0,1]:
+                        box_map[c_l]=[0,2,0]
 
                 if count_lines==4:
                     if box_map_count[0]==[2,0]:
                         box_map[0]=[1,0,1]
                     if box_map_count[0]==[0,2]:
                         box_map[0]=[2,0,2] 
-
-                if (box_map[0]!=[0,1,0] or box_map[0]!=[0,2,0]) and direction is not None:
-                    if direction==1:
-                        box_map[0]=[0,2,0]
-                    if direction==-1:
-                        box_map[0]=[0,1,0]
 
                 flag_timer_map=False            
 
@@ -795,7 +828,7 @@ while 1:
 
         delta_reg=delta_reg//50
 
-        p = int(delta_reg * 0.2 + (delta_reg - delta_reg_old) * 0.3)
+        p = int(delta_reg * 0.15 + (delta_reg - delta_reg_old) * 0.2)
         delta_reg_old = delta_reg
 
         if max_l+max_r==0 and direction is not None:
