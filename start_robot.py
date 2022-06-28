@@ -2377,6 +2377,9 @@ dropVar_inet = tk.StringVar()
 dropVar_inet.set("Connect to robot")
 
 list_combobox.append(["8", "192.168.10.1", "robot", "l"])
+list_combobox.append(["8", "169.254.211.151", "robot", "l"])
+
+ 
 list_combobox.append(["local", "raspberrypi", "robot", "l"])
 
 list_combobox.append(["scan_inet", " "])
